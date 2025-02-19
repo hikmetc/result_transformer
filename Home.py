@@ -296,6 +296,6 @@ with tab3:
     if st.button("Calculate Adjusted Source Method Result"):
         result_source = calculate_result_source(l_target, u_target, l_source, u_source, result_source)
         if result_source is not None:
-            st.success(f"Calculated Result Source: {result_source:.4f}")
+            st.success(f"**Calculated Result Source: {result_source:.3f}**")
 
     st.write("---")
