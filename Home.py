@@ -225,7 +225,7 @@ with tab2:
             percentile_2_5_source = np.percentile(analyte_data_source, 2.5)
             percentile_97_5_source = np.percentile(analyte_data_source, 97.5)
 
-            st.markdown(f"**:blue[2.5th Percentile:] {percentile_97_5_source}**")
+            st.markdown(f"**:blue[2.5th Percentile:] {percentile_2_5_source}**")
             st.markdown(f"**:blue[97.5th Percentile:] {percentile_97_5_source}**")
         else:
             st.info("Please upload a file to view the distribution and percentiles.")
