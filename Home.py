@@ -166,7 +166,6 @@ st.image('./images/Result Transformer-4.png')
 tab1, tab2, tab3 = st.tabs(["📖 **Instructions**", "📊 **:green[Distribution and percentiles of uploaded data]**", 
                                 "🛠️ **:blue[Result Transformer]**"],)
 with tab1:
-    st.write("This is the instructions tab")
     st.markdown("""            
                 #### :blue[Instructions]
                 
