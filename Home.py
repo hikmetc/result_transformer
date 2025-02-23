@@ -166,6 +166,8 @@ st.image('./images/Result Transformer-4.png')
 tab1, tab2, tab3 = st.tabs(["📖 **Instructions**", "📊 **:green[Distribution and percentiles of uploaded data]**", 
                                 "🛠️ **:blue[Result Transformer]**"],)
 with tab1:
+    VIDEO_URL = "https://www.youtube.com/watch?v=ordL__6kekE"
+    st.video(VIDEO_URL)
     st.markdown("""            
                 #### :blue[Instructions]
                 
