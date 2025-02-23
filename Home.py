@@ -295,6 +295,8 @@ with tab3:
     if st.button("Calculate Adjusted Source Method Result"):
         result_source = calculate_result_source(l_target, u_target, l_source, u_source, result_source)
         if result_source is not None:
-            st.success(f"**Adjusted source method result: {result_source:.3f}**")
-
+            if result_source >= 0:
+                st.success(f"**Adjusted source method result: {result_source:.3f}**")
+            else:
+                st.error(f"**Inappropriate data entry! Please check percentiles and the source method result you entered.**")
     st.write("---")
