@@ -290,7 +290,7 @@ with tab3:
         u_source = st.number_input("**:green[Upper Percentile of the Data from Source Method (U source)]**", min_value=0.00000 ,format="%.f", value=0.00000)
     
 
-    result_source = st.number_input("**:green[Source Method Result (Result target)]**", min_value=0.00000 ,format="%.f", value=0.00000)
+    result_source = st.number_input("**:green[Current Source Method Result]**", min_value=0.00000 ,format="%.f", value=0.00000)
 
     if st.button("Calculate Adjusted Source Method Result"):
         result_source = calculate_result_source(l_target, u_target, l_source, u_source, result_source)
