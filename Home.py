@@ -1,11 +1,13 @@
 # Deveoper: Hikmet Can Çubukçu
-# Date: 17.02.2025
+# Date: 06.04.2025
 
 import streamlit as st
 st.set_page_config(page_title="Result Transformer", page_icon="🛠️")
 import numpy as np
 import pandas as pd
 import plotly.express as px
+from scipy import stats  # ← new
+
 
 
 with st.sidebar:
@@ -64,6 +66,9 @@ with st.sidebar:
         analyte_data_target = uploaded_data_target[analyte_name_box_target].dropna().reset_index(drop=True)
     
     st.info('*Developed by Hikmet Can Çubukçu, MD, PhD, MSc, EuSpLM* <hikmetcancubukcu@gmail.com>')
+
+
+
 
 def plot_interactive_hist_density(data: pd.Series, title: str = 'Interactive Histogram and Density Plot', bins: int = None):
     """
@@ -163,11 +168,10 @@ def plot_interactive_hist_density(data: pd.Series, title: str = 'Interactive His
 
 st.image('./images/Result Transformer-4.png')
 
-tab1, tab2, tab3 = st.tabs(["📖 **Instructions**", "📊 **:green[Distribution and percentiles of uploaded data]**", 
+tab1, tab2, tab3, tab4 = st.tabs(["📖 **Instructions**", "📊 **:green[Distribution and percentiles of uploaded data]**", "📊 **:orange[KS test and rescaled distributions]**", 
                                 "🛠️ **:blue[Result Transformer]**"],)
 with tab1:
-    VIDEO_URL = "https://www.youtube.com/watch?v=ordL__6kekE"
-    st.video(VIDEO_URL)
+    st.write("This is the instructions tab")
     st.markdown("""            
                 #### :blue[Instructions]
                 
@@ -214,40 +218,183 @@ with tab1:
                 """) 
 
 with tab2:
-    with st.container():
-        st.markdown("#### :blue[The distribution of source method results]")
-        if uploaded_file_source is not None:
-            # Calculate percentiles
-            percentile_2_5_source = np.percentile(analyte_data_source, 2.5)
-            percentile_97_5_source = np.percentile(analyte_data_source, 97.5)
-            percentile_99_source = np.percentile(analyte_data_source, 99)
-            plot_interactive_hist_density(analyte_data_source, x_max_limit = percentile_99_source)
-            # Calculate percentiles
-            percentile_2_5_source = np.percentile(analyte_data_source, 2.5)
-            percentile_97_5_source = np.percentile(analyte_data_source, 97.5)
+    st.markdown("#### :blue[The distribution of source method results]")
+    if uploaded_file_source is not None:
+        # Calculate percentiles
+        percentile_99_source = np.percentile(analyte_data_source, 99)
+        plot_interactive_hist_density(analyte_data_source, x_max_limit=percentile_99_source)
 
-            st.markdown(f"**:blue[2.5th Percentile:] {percentile_2_5_source}**")
-            st.markdown(f"**:blue[97.5th Percentile:] {percentile_97_5_source}**")
-        else:
-            st.info("Please upload a file to view the distribution and percentiles.")
+        percentile_2_5_source = np.percentile(analyte_data_source, 2.5)
+        percentile_97_5_source = np.percentile(analyte_data_source, 97.5)
+
+        st.markdown(f"**:blue[2.5th Percentile:] {percentile_2_5_source:.3f}**")
+        st.markdown(f"**:blue[97.5th Percentile:] {percentile_97_5_source:.3f}**")
+    else:
+        st.info("Please upload a source file to view the distribution and percentiles.")
+
     st.write("---")
 
-    with st.container():
-        st.markdown("#### :blue[The distribution of target method results]")
-        if uploaded_file_target is not None:  
-            # Calculate percentiles
-            percentile_2_5_target = np.percentile(analyte_data_target, 2.5)
-            percentile_97_5_target = np.percentile(analyte_data_target, 97.5)
-            percentile_99_target = np.percentile(analyte_data_target, 99)        
-            
-            plot_interactive_hist_density(analyte_data_target, x_max_limit = percentile_99_target)
+    st.markdown("#### :blue[The distribution of target method results]")
+    if uploaded_file_target is not None:
+        # Calculate percentiles
+        percentile_99_target = np.percentile(analyte_data_target, 99)
+        plot_interactive_hist_density(analyte_data_target, x_max_limit=percentile_99_target)
 
-            st.markdown(f"**:blue[2.5th Percentile:] {percentile_2_5_target}**")
-            st.markdown(f"**:blue[97.5th Percentile:] {percentile_97_5_target}**")
-        else:
-            st.info("Please upload a file to view the distribution and percentiles.")
+        percentile_2_5_target = np.percentile(analyte_data_target, 2.5)
+        percentile_97_5_target = np.percentile(analyte_data_target, 97.5)
+
+        st.markdown(f"**:blue[2.5th Percentile:] {percentile_2_5_target:.3f}**")
+        st.markdown(f"**:blue[97.5th Percentile:] {percentile_97_5_target:.3f}**")
+    else:
+        st.info("Please upload a target file to view the distribution and percentiles.")
+
 
 with tab3:
+    # ----------------------------------------------------------------------
+    # NEW SECTION: KS TEST ON ROBUSTLY STANDARDIZED DATA (Using Sampled Data)
+    # ----------------------------------------------------------------------
+
+    st.markdown("#### :blue[Rescaling & Distribution Shape Comparison]")
+    if (uploaded_file_source is not None) and (uploaded_file_target is not None):
+
+        # 1) Robust standardization helper
+        def robust_standardize(series: pd.Series) -> pd.Series:
+            med = np.median(series)
+            iqr = np.percentile(series, 75) - np.percentile(series, 25)
+            if iqr == 0:
+                iqr = 1e-9
+            return (series - med) / iqr
+
+        # 2) Freedman–Diaconis bin‐count helper
+        def fd_bins(series: pd.Series) -> int:
+            q75, q25 = np.percentile(series.dropna(), [75, 25])
+            iqr = q75 - q25
+            n = series.dropna().size
+            bw = 2 * iqr * (n ** (-1/3))
+            if bw <= 0:
+                return 10
+            return max(1, int(np.ceil((series.max() - series.min()) / bw)))
+
+        # 3) Standardize both datasets
+        source_std = robust_standardize(analyte_data_source).rename("Source data (resclaled)")
+        target_std = robust_standardize(analyte_data_target).rename("Target data (resclaled)")
+
+        # 4) Compute bins and 99th‐percentile caps for full standardized data
+        bins_source = fd_bins(source_std)
+        bins_target = fd_bins(target_std)
+        bins_overlay = max(bins_source, bins_target)
+
+        cap_source = np.percentile(source_std, 99)
+        cap_target = np.percentile(target_std, 99)
+        cap_overlay = max(cap_source, cap_target)
+
+        # 4.5) Sample the standardized data for plotting
+        sample_size = st.number_input(
+            "**Select sample size for plotting standardized data**",
+            min_value=1,
+            max_value=min(len(source_std), len(target_std)),
+            value=2000
+        )
+        sampled_source_std = source_std.sample(n=sample_size, random_state=42).reset_index(drop=True)
+        sampled_target_std = target_std.sample(n=sample_size, random_state=42).reset_index(drop=True)
+
+        # 5) Plot individual histograms for the sampled standardized data
+        plot_interactive_hist_density(
+            sampled_source_std,
+            title="Sampled Source Method (Standardized)",
+            bins=fd_bins(sampled_source_std),
+            x_max_limit=np.percentile(sampled_source_std, 99)
+        )
+        plot_interactive_hist_density(
+            sampled_target_std,
+            title="Sampled Target Method (Standardized)",
+            bins=fd_bins(sampled_target_std),
+            x_max_limit=np.percentile(sampled_target_std, 99)
+        )
+
+        # 6) Overlaid histogram for the sampled standardized data
+        df_sampled_std = pd.concat([
+            sampled_source_std.rename("Source (std)"),
+            sampled_target_std.rename("Target (std)")
+        ], axis=1).melt(var_name="Method", value_name="Value")
+        sampled_cap = np.percentile(df_sampled_std["Value"], 99)
+        sampled_bins = max(fd_bins(sampled_source_std), fd_bins(sampled_target_std))
+        fig = px.histogram(
+            df_sampled_std,
+            x="Value",
+            color="Method",
+            nbins=sampled_bins,
+            histnorm="density",
+            opacity=0.6,
+            barmode="overlay",
+            title="Overlaid Density of Sampled Standardized Data",
+            color_discrete_map={"Source (std)": "#E74C3C", "Target (std)": "#3498DB"}
+        )
+        fig.update_xaxes(range=[df_sampled_std["Value"].min(), sampled_cap])
+        fig.update_layout(template="plotly_white")
+        st.plotly_chart(fig)
+
+        # 7) KS‐test inputs and execution using full standardized data
+        min_size = min(len(source_std), len(target_std))
+        st.markdown(f"Minimum available sample size: **{min_size}**")
+        subset_size = st.number_input(
+            "Subset size for KS test",
+            min_value=5,
+            max_value=int(min_size),
+            value=2000
+        )
+        alpha = st.number_input(
+            "Significance level (alpha)",
+            min_value=0.001,
+            max_value=0.5,
+            value=0.05,
+            step=0.005,
+            format="%.3f"
+        )
+
+        if st.button("Run KS Test"):
+            # Set a fixed seed for reproducibility
+            np.random.seed(123)
+            # Use n1 and n2 for clarity (here both equal subset_size)
+            n1 = subset_size
+            n2 = subset_size
+            src_sample = np.random.choice(source_std, size=n1, replace=False)
+            tgt_sample = np.random.choice(target_std, size=n2, replace=False)
+            ks_stat, p_value = stats.ks_2samp(src_sample, tgt_sample)
+
+            # Calculate critical D value using the original formula
+            c_alpha = np.sqrt(-0.5 * np.log(alpha / 2))
+            D_crit = c_alpha * np.sqrt((n1 + n2) / (n1 * n2))
+
+            st.write(f"**KS Statistic (Observed D):** {ks_stat:.4f}")
+            st.write(f"**Critical D value (D_crit):** {D_crit:.4f}")
+            st.write(f"**p-value:** {p_value:.8f}")
+
+            if ks_stat < D_crit:
+                st.success(f"Observed D = {ks_stat:.4f} < Critical D = {D_crit:.4f}: shapes are similar.")
+            else:
+                st.warning(f"Observed D = {ks_stat:.4f} ≥ Critical D = {D_crit:.4f}: shapes differ.")
+            # Informational text using st.info and st.latex
+            st.info(
+                "The KS statistic (D) is the maximum absolute difference between the two empirical CDFs.\n\n"
+                "A significance level (α) was used to compute the critical value using the following formulas:"
+            )
+
+            st.latex(r"c(\alpha) = \sqrt{-\frac{1}{2}\ln\left(\frac{\alpha}{2}\right)}")
+            st.latex(r"D_{\text{crit}} = c(\alpha)\sqrt{\frac{n_1+n_2}{n_1\,n_2}}")
+
+            st.info(
+                "If the observed D is smaller than the critical D value, the null hypothesis (that the samples come "
+                "from the same distribution) is not rejected.\n\n"
+                "Note: Very large sample sizes can yield a small p-value even for minor differences; hence, the focus "
+                "here is on the actual D value."
+            )
+    else:
+        st.warning("Upload both source and target data to proceed.")
+
+
+
+with tab4:
     st.markdown("#### :blue[Result transformation formula]")
     # Define the formula as a LaTeX string
     #formula_latex = r"Adjusted Result = L_{target} + \frac{U_{target} - L_{target}}{U_{source} - L_{source}} \times (Result_{source} - L_{source})"
@@ -292,13 +439,11 @@ with tab3:
         u_source = st.number_input("**:green[Upper Percentile of the Data from Source Method (U source)]**", min_value=0.00000 ,format="%.f", value=0.00000)
     
 
-    result_source = st.number_input("**:green[Current Source Method Result]**", min_value=0.00000 ,format="%.f", value=0.00000)
+    result_source = st.number_input("**:green[Source Method Result (Result target)]**", min_value=0.00000 ,format="%.f", value=0.00000)
 
     if st.button("Calculate Adjusted Source Method Result"):
         result_source = calculate_result_source(l_target, u_target, l_source, u_source, result_source)
         if result_source is not None:
-            if result_source >= 0:
-                st.success(f"**Adjusted source method result: {result_source:.3f}**")
-            else:
-                st.error(f"**Inappropriate data entry! Please check percentiles and the source method result you entered.**")
+            st.success(f"Calculated Result Source: {result_source:.4f}")
+
     st.write("---")
