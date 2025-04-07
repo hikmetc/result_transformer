@@ -2,7 +2,7 @@
 # Date: 06.04.2025
 
 import streamlit as st
-st.set_page_config(page_title="Result Transformer", page_icon="🛠️")
+st.set_page_config(layout="wide", page_title="Result Transformer", page_icon="🛠️")
 import numpy as np
 import pandas as pd
 import plotly.express as px
